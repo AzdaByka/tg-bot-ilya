@@ -142,11 +142,14 @@ async def users_command(message, user: User):
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
 async def load_data():
     with open('timer.txt', 'r') as file:
-        config.timer_frt, config.timer_second = file.read().split(' ')
+        row = file.read().split(' ')
+        config.timer_frt, config.timer_second = float(row[0]), float(row[1])
     with open('score_start.txt', 'r') as file:
-        config.score_start_frt, config.score_start_second = file.read().split(' ')
+        row = file.read().split(' ')
+        config.score_start_frt, config.score_start_second = float(row[0]), float(row[1])
     with open('score_end.txt', 'r') as file:
-        config.score_end_frt, config.score_end_second = file.read().split(' ')
+        row = file.read().split(' ')
+        config.score_end_frt, config.score_end_second = float(row[0]), float(row[1])
 
 
 async def main() -> None:
