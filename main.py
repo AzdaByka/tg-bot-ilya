@@ -182,7 +182,7 @@ async def owners_command(message, user: User):
 async def admins_command(message, user: User):
     answer = 'Неизвестная команда'
     if message.text == 'Получить следующий коэффициент':
-        return await generate_score(user)
+        return await generate_score(user), None
     if user.processed_command is False:
         if message.text == 'Добавить пользователя':
             user.processed_command = True
@@ -201,7 +201,7 @@ async def admins_command(message, user: User):
 
 async def users_command(message, user: User):
     if message.text == 'Получить следующий коэффициент':
-        return await generate_score(user)
+        return await generate_score(user), None
     return 'Неизвестная команда'
 
 

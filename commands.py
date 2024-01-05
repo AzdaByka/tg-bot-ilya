@@ -32,7 +32,7 @@ async def generate_score(user: User) -> str:
     score_end = round(random.uniform(score_end_frt, score_end_second), 2)
     timer_seconds = random.randint(timer_frt, timer_second)
     minutes = math.floor(timer_seconds / 60)
-    # now = now + timedelta(seconds=timer_seconds)
+    now = now + timedelta(seconds=timer_seconds)
     await UserRepo.update_query(user.id, {"date_next_call": now})
     answer = score_template.replace("more", more) \
         .replace("score_start", str(score_start)) \
