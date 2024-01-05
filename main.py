@@ -78,7 +78,7 @@ async def start_command(message):
                 await UserRepo.update(user)
                 keyboard = await get_keyboard('user')
     else:
-        await add_admin(message.from_user.username)
+        # await add_admin(message.from_user.username)
         answer = 'Обратись к администратору для получения доступа к софту'
         keyboard = await get_keyboard('')
     await bot.send_message(message.from_user.id, answer, reply_markup=keyboard)
