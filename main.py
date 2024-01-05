@@ -33,11 +33,10 @@ async def get_keyboard(role: str):
     match role:
         case 'owner':
             keyboard = ReplyKeyboardMarkup(keyboard=[
-                [KeyboardButton(text='Активные администраторы'), KeyboardButton(text='Статистика администратора')],
+                [KeyboardButton(text='Активные администраторы'),  KeyboardButton(text='Изменить таймер')],
                 [KeyboardButton(text='Добавить администратора'), KeyboardButton(text='Удалить администратора')],
                 [KeyboardButton(text='Изменить коэффициента входа'), KeyboardButton(text='Изменить когда забирать')],
-                [KeyboardButton(text='Добавить пользователя'), KeyboardButton(text='Изменить таймер')],
-                [KeyboardButton(text='Получить следующий коэффициент')]
+                [KeyboardButton(text='Добавить пользователя'), KeyboardButton(text='Получить следующий коэффициент')],
             ], resize_keyboard=True)
             # keyboard.add(KeyboardButton(text='Добавить пользователя'))
             # keyboard.add(KeyboardButton(text='Добавить админа'))
@@ -124,7 +123,7 @@ async def owners_command(message, user: User):
     answer = 'Неизвестная команда'
     mackup = None
     if message.text == 'Получить следующий коэффициент':
-        return await generate_score(user)
+        return await generate_score(user), None
     if user.processed_command is False:
         match message.text:
             case 'Добавить администратора':
