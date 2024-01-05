@@ -1,8 +1,9 @@
 """This file contains a UserRepo class to work with users"""
 import hashlib
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 
+import pymongo
 from pydantic import BaseModel, Field
 
 from connection_mongo import database
@@ -21,6 +22,9 @@ class User(BaseModel):
     role: str = Field(default='user', include=True)
     telegram_id: Optional[int] = Field(default=-1, include=True)
     date_next_call: Optional[datetime] = Field(default=None, include=True)
+    added_by: str = Field(include=True)
+    processed_command: bool = Field(default=False, include=True)
+    current_command: str = Field(default='', include=True)
     created_at: Optional[datetime] = Field(default=None, include=True)
     updated_at: Optional[datetime] = Field(default=None, include=True)
 
@@ -39,8 +43,7 @@ class UserRepo:
         """
         if not params:
             params = {}
-        params.update({'is_deleted': False})
-        _items = database.get_collection(USER_COLLECTION).find(params)
+        _items = database.get_collection(USER_COLLECTION).find(params).sort('created_at', pymongo.DESCENDING)
         _list_items = []
         async for book in _items:
             book['id'] = str(book.pop('_id'))
@@ -76,10 +79,10 @@ class UserRepo:
         :param user: a User object representing the updated user data
         """
         user.updated_at = datetime.utcnow()
-        _user= user.model_dump()
+        _user = user.model_dump()
         _user.pop("id")
         await database.get_collection(USER_COLLECTION).update_one(
-            {"_id": user.id}, {"$set":_user})
+            {"_id": user.id}, {"$set": _user})
 
     @staticmethod
     async def update_complete_registration(user: User) -> None:
@@ -193,8 +196,8 @@ class UserRepo:
         :return: a User object representing the new user
         """
         user.id = str(uuid.uuid4())
-        user.created_at = datetime.utcnow()
-        user.updated_at = datetime.utcnow()
+        user.created_at = datetime.utcnow() + timedelta(hours=5)
+        user.updated_at = datetime.utcnow() + timedelta(hours=5)
         _user = user.model_dump(exclude={})
         _user['_id'] = user.id
         _user.pop('id', None)

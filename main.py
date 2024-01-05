@@ -6,16 +6,20 @@ from datetime import datetime, timedelta
 from aiogram import Bot, Dispatcher
 from aiogram.filters import CommandStart, CommandObject
 from aiogram.methods import SendMessage
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, CallbackQuery
+from aiogram.utils.formatting import Text
+from magic_filter import F
 
 import config
-from commands import generate_score, add_admin, add_user, edit_timer, edit_score_start, edit_score_end, delete_admin
+from commands import generate_score, add_admin, add_user, edit_timer, edit_score_start, edit_score_end, delete_admin, \
+    get_active_admins, get_statistics_admin
 from connection_mongo import database
 from config import MONGODB_URL, TELEGRAM_BOT_TOKEN
 from UserRepo import UserRepo, User
 
 bot = Bot(TELEGRAM_BOT_TOKEN)
 dp = Dispatcher()
+
 FindScoreCommand = CommandObject(command="/find_score")
 AddUserCommand = CommandObject(command="/add_user")
 AddAdminCommand = CommandObject(command="/add_admin")
@@ -28,8 +32,13 @@ DeleteAdminCommand = CommandObject(command="/delete_admin")
 async def get_keyboard(role: str):
     match role:
         case 'owner':
-            keyboard = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text='Получить следующий коэффициент')]],
-                                           resize_keyboard=True)
+            keyboard = ReplyKeyboardMarkup(keyboard=[
+                [KeyboardButton(text='Активные администраторы'), KeyboardButton(text='Статистика администратора')],
+                [KeyboardButton(text='Добавить администратора'), KeyboardButton(text='Удалить администратора')],
+                [KeyboardButton(text='Изменить коэффициента входа'), KeyboardButton(text='Изменить когда забирать')],
+                [KeyboardButton(text='Добавить пользователя'), KeyboardButton(text='Изменить таймер')],
+                [KeyboardButton(text='Получить следующий коэффициент')]
+            ], resize_keyboard=True)
             # keyboard.add(KeyboardButton(text='Добавить пользователя'))
             # keyboard.add(KeyboardButton(text='Добавить админа'))
             # keyboard.add(KeyboardButton(text='Изменить таймер'))
@@ -37,15 +46,16 @@ async def get_keyboard(role: str):
             # keyboard.add(KeyboardButton(text='Изменить score_end'))
             # keyboard.add(KeyboardButton(text='Удалить админа'))
         case 'admin':
-            keyboard = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text='Получить следующий коэффициент')]],
-                                           resize_keyboard=True)
+            keyboard = ReplyKeyboardMarkup(keyboard=[
+                [KeyboardButton(text='Добавить пользователя'), KeyboardButton(text='Получить следующий коэффициент')]],
+                resize_keyboard=True)
         case _:
             keyboard = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text='Получить следующий коэффициент')]],
                                            resize_keyboard=True)
         # case _:
         #     keyboard = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text='Активировать доступ')]],
         #                                    resize_keyboard=True, request_contact=True)
-            # keyboard.add(KeyboardButton(text='Запросить доступ'))
+        # keyboard.add(KeyboardButton(text='Запросить доступ'))
     return keyboard
 
 
@@ -80,53 +90,114 @@ async def get_text_messages(message):
     if user is not None:
         match user.role:
             case 'owner':
-                answer = await owners_command(message, user)
+                answer, mackup = await owners_command(message, user)
+                if mackup is None:
+                    await get_keyboard('owner')
             case 'admin':
                 answer = await admins_command(message, user)
+                mackup = await get_keyboard('admin')
             case _:
                 answer = await users_command(message, user)
+                mackup = await get_keyboard('user')
     else:
         answer = 'Обратись к администратору для получения доступа к софту'
-    await bot.send_message(message.from_user.id, answer)
+        mackup = None
+    await bot.send_message(message.from_user.id, answer, reply_markup=mackup)
     return ''
 
 
+async def get_admin_stats(callback_query: CallbackQuery):
+    user_id = callback_query.from_user.id
+    user = await UserRepo.find_by_tg_id(user_id)
+    if user is None:
+        answer = 'У вас нет доступа'
+        return
+    if user.role != 'owner':
+        answer = 'У вас нет доступа'
+        return
+    admin_id = callback_query.data.split(' ')[1]
+    answer = await get_statistics_admin(admin_id)
+    await bot.send_message(user_id, answer)
+
+
 async def owners_command(message, user: User):
+    answer = 'Неизвестная команда'
+    mackup = None
     if message.text == 'Получить следующий коэффициент':
         return await generate_score(user)
-    if message.text[0] == '/':
+    if user.processed_command is False:
+        match message.text:
+            case 'Добавить администратора':
+                user.processed_command = True
+                user.current_command = 'Добавить администратора'
+                await UserRepo.update(user)
+                answer = 'Введите имя администратора без собаки'
+            case 'Добавить пользователя':
+                user.processed_command = True
+                user.current_command = 'Добавить пользователя'
+                await UserRepo.update(user)
+                answer = 'Введите имя пользователя без собаки'
+            case 'Изменить таймер':
+                user.processed_command = True
+                user.current_command = 'Изменить таймер'
+                await UserRepo.update(user)
+                answer = 'Введите новый диапазон таймера в секундах\n Например: 300 600'
+            case 'Изменить коэффициента входа':
+                user.processed_command = True
+                user.current_command = 'Изменить коэффициента входа'
+                await UserRepo.update(user)
+                answer = 'Введите новый диапазон коэффициента входа\n Например: 1.5 3'
+            case 'Изменить когда забирать':
+                user.processed_command = True
+                user.current_command = 'Изменить когда забирать'
+                await UserRepo.update(user)
+                answer = 'Введите новый диапазон когда забирать\n Например: 1.5 3'
+            case 'Удалить администратора':
+                user.processed_command = True
+                user.current_command = 'Удалить админа'
+                await UserRepo.update(user)
+                answer = 'Введите имя администратора без собаки'
+            case 'Активные администраторы':
+                answer, mackup = await get_active_admins(user.id)
+    else:
         text = message.text.split(' ')
-        command = text[0] + ' ' + text[1]
-        match command:
-            case '/add admin':
-                return await add_admin(text[2])
-            case '/add user':
-                return await add_user(text[2])
-            case '/edit timer':
-                return await edit_timer(text[2], text[3])
-            case '/edit score_start':
-                return await edit_score_start(text[2], text[3])
-            case '/edit score_end':
-                return await edit_score_end(text[2], text[3])
-            case '/delete admin':
-                return await delete_admin(text[2])
-    return 'Неизвестная команда'
+        match user.current_command:
+            case 'Добавить администратора':
+                answer = await add_admin(text[0], user.id)
+            case 'Добавить пользователя':
+                answer = await add_user(text[0], user.id)
+            case 'Изменить таймер':
+                answer = await edit_timer(text[0], text[1])
+            case 'Изменить коэффициента входа':
+                answer = await edit_score_start(text[0], text[1])
+            case 'Изменить когда забирать':
+                answer = await edit_score_end(text[0], text[1])
+            case 'Удалить админа':
+                answer = await delete_admin(text[0])
+        user.current_command = ''
+        user.processed_command = False
+        await UserRepo.update(user)
+    return answer, mackup
 
 
 async def admins_command(message, user: User):
+    answer = 'Неизвестная команда'
     if message.text == 'Получить следующий коэффициент':
         return await generate_score(user)
-    if message.text[0] == '/':
+    if user.processed_command is False:
+        if message.text == 'Добавить пользователя':
+            user.processed_command = True
+            user.current_command = 'Добавить пользователя'
+            await UserRepo.update(user)
+            answer = 'Введите имя пользователя без собаки'
+    else:
         text = message.text.split(' ')
-        command = text[0] + ' ' + text[1]
-        match command:
-            case '/add admin':
-                return await add_admin(text[2])
-            case '/add user':
-                return await add_user(text[2])
-            case '/delete admin':
-                return await delete_admin(text[2])
-    return 'Неизвестная команда'
+        if user.current_command == 'Добавить администратора':
+            answer = await add_user(text[0], user.id)
+        user.current_command = ''
+        user.processed_command = False
+        await UserRepo.update(user)
+    return answer
 
 
 async def users_command(message, user: User):
@@ -155,6 +226,7 @@ async def load_data():
 async def main() -> None:
     # TODO: add load score on start up
     await load_data()
+    dp.callback_query.register(get_admin_stats, F.data.startswith('admin'))
     await dp.start_polling(bot)
 
 
