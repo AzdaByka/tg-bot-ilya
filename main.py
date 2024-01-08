@@ -191,7 +191,7 @@ async def admins_command(message, user: User):
             answer = 'Введите имя пользователя без собаки'
     else:
         text = message.text.split(' ')
-        if user.current_command == 'Добавить администратора':
+        if user.current_command == 'Добавить пользователя':
             answer = await add_user(text[0], user.id)
         user.current_command = ''
         user.processed_command = False
