@@ -50,12 +50,12 @@ async def add_admin(user_name: str, added_by: str) -> str:
     return 'Админ добавлен'
 
 
-async def add_user(user_id: int, added_by: str) -> str:
-    user = await UserRepo.find_one(user_id)
+async def add_user(username: str, added_by: str) -> str:
+    user = await UserRepo.find_by_name(username)
     if user is not None:
         return 'Такой пользователь уже есть'
     await UserRepo.insert(
-        User(id=user_id, role='user', date_next_call=datetime.utcnow() + timedelta(hours=3), added_by=added_by))
+        User(name=username, role='user', date_next_call=datetime.utcnow() + timedelta(hours=3), added_by=added_by))
     return 'Пользователь добавлен'
 
 
