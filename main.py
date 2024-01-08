@@ -93,13 +93,11 @@ async def get_text_messages(message):
                 if mackup is None:
                     await get_keyboard('owner')
             case 'admin':
-                answer, mackup = await admins_command(message, user)
-                if mackup is None:
-                    mackup = await get_keyboard('admin')
+                answer = await admins_command(message, user)
+                mackup = await get_keyboard('admin')
             case _:
-                answer, mackup = await users_command(message, user)
-                if mackup is None:
-                    mackup = await get_keyboard('user')
+                answer = await users_command(message, user)
+                mackup = await get_keyboard('user')
     else:
         answer = 'Обратись к администратору для получения доступа к софту'
         mackup = None
